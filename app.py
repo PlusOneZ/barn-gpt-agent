@@ -54,15 +54,15 @@ def chatting_api():
     def chat_and_call_hook(user_input, api_hook):
         try:
             ai_resp = gt.chat(user_input)  # results from calling GPT chat
-            logging.debug(ai_resp)
+            logging.debug(ai_resp.json())
             result = ai_resp.choices[0].message.content
             # todo save the result some where trackable
-            call_hook_with_result(api_hook, [result])
+            call_hook_with_result(api_hook, [{"type": "chat", "content": result}], api_response=ai_resp)
         except OpenAIError as e:
             logging.error(f"chatting_api: task [{user_input}] with hook '{hook}' not finished!")
             logging.error(f"With error: {e}")
 
-    thread = Thread(target=chat_and_call_hook, kwargs={'user_input': data["content"]["prompts"], "api_hook": hook})
+    thread = Thread(target=chat_and_call_hook, kwargs={'user_input': data, "api_hook": hook})
     thread.start()
     return "OK"
 
@@ -80,7 +80,7 @@ def image_generation_api():
             logging.debug(ai_resp)
             result = ai_resp.data[0].url
             # todo save the result some where trackable
-            call_hook_with_result(api_hook, [{"type": "image_generation", "url": result}])
+            call_hook_with_result(api_hook, [{"type": "image-generation", "url": result}], api_response=ai_resp)
         except OpenAIError as e:
             logging.error(f"image_generation_api: task [{prompt}] with hook '{hook}' not finished!")
             logging.error(f"With error: {e}")
