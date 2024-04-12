@@ -2,7 +2,6 @@ import asyncio
 
 from flask import Flask
 from time import sleep
-import requests
 from flask import request
 import logging
 from openai import OpenAIError
@@ -26,22 +25,22 @@ def hello_world():  # put application's code here
 
 # /api/dumb/task
 # request body: {json: {data: data, hook: hook}
-@app.route('/api/dumb/task', methods=['POST'])
+@app.route('/api/dummy/task', methods=['POST'])
 def api():
     # get data and hook from request body
     data = request.json['data']
     hook = request.json['hook']
     print(data, hook)
-    some_async_task(hook)
+
+    def some_async_task(api_hook):
+        sleep(5)
+        res = call_hook_with_result(api_hook, ["result from flask async task"])
+        return res
+
+    # start the async task
+    thread = Thread(target=some_async_task, kwargs={"api_hook": hook})
+    thread.start()
     return "OK"
-
-
-def some_async_task(api_hook):
-    sleep(5)
-    res = requests.put(api_hook, json={"status": "done", "results": ["result from flask async task"]})
-    # res = requests.get(api_hook)
-    print(res.status_code, res.text)
-    return res.status_code, res.text
 
 
 # /api/chat
@@ -63,7 +62,7 @@ def chatting_api():
             logging.error(f"chatting_api: task [{user_input}] with hook '{hook}' not finished!")
             logging.error(f"With error: {e}")
 
-    thread = Thread(target=chat_and_call_hook, kwargs={'user_input': data["content"], "api_hook": hook})
+    thread = Thread(target=chat_and_call_hook, kwargs={'user_input': data["content"]["prompts"], "api_hook": hook})
     thread.start()
     return "OK"
 

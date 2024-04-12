@@ -10,14 +10,17 @@ client = OpenAI()
 # Calling to OpenAI chat completion API with
 # Params:
 #   - user_input: str
-def chat(user_input: str):
+def chat(user_input: []):
     logging.info("Chat completion called with user input: '{}'".format(user_input))
+    # check user_input style
+    user_input = [
+        {"role": "user", "content": i} if isinstance(i, str)
+        else {"role": i["role"], "content": i["content"]}
+        for i in user_input
+    ]
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": user_input}
-        ]
+        messages=user_input
     )
     return completion
 
@@ -32,4 +35,3 @@ def image_generation(user_prompt: str):
         n=1
     )
     return response
-
