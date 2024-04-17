@@ -1,10 +1,7 @@
-import asyncio
-
 from flask import Flask
 from time import sleep
 from flask import request
 import logging
-from openai import OpenAIError
 
 from threading import Thread
 
@@ -15,7 +12,6 @@ from call_hook.send_results import call_hook_with_result
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
-loop = asyncio.get_event_loop()
 
 
 @app.route('/')
@@ -25,20 +21,23 @@ def hello_world():  # put application's code here
 
 # /api/dumb/task
 # request body: {json: {data: data, hook: hook}
-@app.route('/api/dummy/task', methods=['POST'])
+@app.route('/api/task/dummy', methods=['POST'])
 def api():
     # get data and hook from request body
     data = request.json['data']
     hook = request.json['hook']
     print(data, hook)
 
-    def some_async_task(api_hook):
-        sleep(5)
-        res = call_hook_with_result(api_hook, ["result from flask async task"])
-        return res
-
+    # dummy tasks that takes 5 seconds to complete
+    cb = gt.hook_callback_for_task(
+        lambda x: sleep(5),
+        "dummy",
+        data,
+        hook,
+        lambda x: "this is a dummy task"
+    )
     # start the async task
-    thread = Thread(target=some_async_task, kwargs={"api_hook": hook})
+    thread = Thread(target=cb)
     thread.start()
     return "OK"
 
@@ -50,19 +49,13 @@ def chatting_api():
     data = request.json['data']
     hook = request.json['hook']
 
-    # defined for asynchronous task
-    def chat_and_call_hook(user_input, api_hook):
-        try:
-            ai_resp = gt.chat(user_input)  # results from calling GPT chat
-            logging.debug(ai_resp.json())
-            result = ai_resp.choices[0].message.content
-            # todo save the result some where trackable
-            call_hook_with_result(api_hook, [{"type": "chat", "content": result}], api_response=ai_resp)
-        except OpenAIError as e:
-            logging.error(f"chatting_api: task [{user_input}] with hook '{hook}' not finished!")
-            logging.error(f"With error: {e}")
-
-    thread = Thread(target=chat_and_call_hook, kwargs={'user_input': data, "api_hook": hook})
+    cb = gt.hook_callback_for_task(
+        gt.chat,
+        "chat",
+        data, hook,
+        lambda x: x.choices[0].message.content
+    )
+    thread = Thread(target=cb)
     thread.start()
     return "OK"
 
@@ -74,18 +67,31 @@ def image_generation_api():
     data = request.json['data']
     hook = request.json['hook']
 
-    def generate_image_and_call_hook(prompt, api_hook):
-        try:
-            ai_resp = gt.image_generation(prompt)  # results from calling GPT chat
-            logging.debug(ai_resp)
-            result = ai_resp.data[0].url
-            # todo save the result some where trackable
-            call_hook_with_result(api_hook, [{"type": "image-generation", "url": result}], api_response=ai_resp)
-        except OpenAIError as e:
-            logging.error(f"image_generation_api: task [{prompt}] with hook '{hook}' not finished!")
-            logging.error(f"With error: {e}")
+    cb = gt.hook_callback_for_task(
+        gt.image_generation,
+        "image-generation",
+        data["image_prompt"],
+        hook,
+        lambda x: x.data[0].url
+    )
+    thread = Thread(target=cb)
+    thread.start()
+    return "OK"
 
-    thread = Thread(target=generate_image_and_call_hook, kwargs={'prompt': data["image_prompt"], "api_hook": hook})
+
+@app.route('/api/task/vision', methods=['POST'])
+def vision_api():
+    data = request.json['data']
+    hook = request.json['hook']
+
+    cb = gt.hook_callback_for_task(
+        gt.vision,
+        "image-recognition",
+        data,
+        hook,
+        lambda x: x.choices[0].message.content
+    )
+    thread = Thread(target=cb)
     thread.start()
     return "OK"
 

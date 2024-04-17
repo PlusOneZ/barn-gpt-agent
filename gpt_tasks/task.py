@@ -1,6 +1,8 @@
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from dotenv import load_dotenv
 import logging
+
+from call_hook.send_results import call_hook_with_result
 
 load_dotenv()
 
@@ -46,3 +48,21 @@ def vision(user_input: []):
         max_tokens=200,
     )
     return completion
+
+
+def hook_callback_for_task(task, task_type, data, hook, get_result):
+    def inner_func():
+        try:
+            api_resp = task(data)
+            logging.debug(api_resp.json() if api_resp else "dummy response")
+            result = get_result(api_resp)
+            call_hook_with_result(hook, [{"type": task_type, "content": result}], api_response=api_resp)
+        except OpenAIError as e:
+            logging.error(f"{task_type}: task not finished!")
+            logging.error(f"Data: {data}")
+            logging.error(f"Hook: {hook}")
+            logging.error(f"With error: {e}")
+            call_hook_with_result(hook, [{"type": task_type, "content": str(e)}], status="failed")
+
+    return inner_func
+
