@@ -1,17 +1,16 @@
 from flask import Flask
-from time import sleep
 from flask import request
+
 import logging
 
-from threading import Thread
-
-import gpt_tasks.task as gt
-from call_hook.send_results import call_hook_with_result
+from gpt_tasks import DoTask
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
+
+task_manager = DoTask()
 
 
 @app.route('/')
@@ -22,24 +21,15 @@ def hello_world():  # put application's code here
 # /api/dumb/task
 # request body: {json: {data: data, hook: hook}
 @app.route('/api/task/dummy', methods=['POST'])
-def api():
+def dummy_api():
     # get data and hook from request body
     data = request.json['data']
     hook = request.json['hook']
     print(data, hook)
 
     # dummy tasks that takes 5 seconds to complete
-    cb = gt.hook_callback_for_task(
-        lambda x: sleep(5),
-        "dummy",
-        data,
-        hook,
-        lambda x: "this is a dummy task"
-    )
-    # start the async task
-    thread = Thread(target=cb)
-    thread.start()
-    return "OK"
+    ret = task_manager.create("dummy", data, hook)
+    return "OK" if ret else ("Failed", 400)
 
 
 # /api/chat
@@ -49,15 +39,8 @@ def chatting_api():
     data = request.json['data']
     hook = request.json['hook']
 
-    cb = gt.hook_callback_for_task(
-        gt.chat,
-        "chat",
-        data, hook,
-        lambda x: x.choices[0].message.content
-    )
-    thread = Thread(target=cb)
-    thread.start()
-    return "OK"
+    ret = task_manager.create("chat", data, hook)
+    return "OK" if ret else ("Failed", 400)
 
 
 # /api/task/image/generation
@@ -67,16 +50,8 @@ def image_generation_api():
     data = request.json['data']
     hook = request.json['hook']
 
-    cb = gt.hook_callback_for_task(
-        gt.image_generation,
-        "image-generation",
-        data["image_prompt"],
-        hook,
-        lambda x: x.data[0].url
-    )
-    thread = Thread(target=cb)
-    thread.start()
-    return "OK"
+    ret = task_manager.create("image-generation", data["image_prompt"], hook)
+    return "OK" if ret else ("Failed", 400)
 
 
 @app.route('/api/task/vision', methods=['POST'])
@@ -84,16 +59,8 @@ def vision_api():
     data = request.json['data']
     hook = request.json['hook']
 
-    cb = gt.hook_callback_for_task(
-        gt.vision,
-        "image-recognition",
-        data,
-        hook,
-        lambda x: x.choices[0].message.content
-    )
-    thread = Thread(target=cb)
-    thread.start()
-    return "OK"
+    ret = task_manager.create("image-recognition", data, hook)
+    return "OK" if ret else ("Failed", 400)
 
 
 if __name__ == '__main__':
