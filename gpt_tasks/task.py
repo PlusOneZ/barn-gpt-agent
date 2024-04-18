@@ -125,7 +125,7 @@ class DoTask:
         if task_type not in self.tasks:
             logging.error(f"Task type '{task_type}' not found")
             return False
-        thread = Thread(target=self.tasks[task_type], args={data: data, hook: hook})
+        thread = Thread(target=self.tasks[task_type], args=(data, hook))
         thread.start()
         return True
 
