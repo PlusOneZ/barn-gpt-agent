@@ -52,6 +52,22 @@ def image_generation_api():
     return "OK" if ret else ("Failed", 400)
 
 
+@app.route('/api/task/audio/generation', methods=['POST'])
+def tts_api():
+    if task_manager.check_limit("audio-generation"):
+        return "OK"
+    else:
+        return "Rate limit exceeded", 429
+
+
+@app.route('/api/task/audio/recognition', methods=['POST'])
+def transcribe_to_text_api():
+    if task_manager.check_limit("audio-recognition"):
+        return "OK"
+    else:
+        return "Rate limit exceeded", 429
+
+
 @app.route('/api/task/vision', methods=['POST'])
 def vision_api():
     data = request.json['data']

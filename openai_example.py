@@ -10,7 +10,7 @@ if __name__ == "__main__":
     # client = OpenAI(
     #   api_key=os.environ.get("CUSTOM_ENV_NAME"),
     # )
-    mode = "vision"
+    mode = "tts"
     if mode == "chat":
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -52,3 +52,16 @@ if __name__ == "__main__":
         )
 
         print(response.choices[0])
+
+    elif mode == 'tts':
+        from pathlib import Path
+        import openai
+
+        speech_file_path = Path(__file__).parent / "speech.mp3"
+        response = openai.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input="Read this aloud for me please!"
+        )
+        response.stream_to_file(speech_file_path)
+

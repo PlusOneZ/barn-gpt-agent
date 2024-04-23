@@ -55,25 +55,17 @@ def vision(user_input: []):
     return completion
 
 
-def tts(input_text: str):
-    logging.info(f"Text to Speech called with text: {input_text}")
-    response = client.audio.speech.create(
-        model='tts-1',
-        voice='alloy',
-        input=input_text
-    )
-    return response
+def tts(_):
+    logging.info("TTS called for rate limit checking")
+    return
 
 
-def transcribe_to_text(audio_file):
-    transcript = client.audio.transcriptions.create(
-        model="whisper-1",
-        file=audio_file
-    )
-    return transcript
+def transcribe_to_text(_):
+    logging.info("STT called for rate limit checking")
+    return
 
 
-def hook_callback_for_task(task, task_type, get_result):
+def hook_callback_for_task(task, task_type, get_result, rate_control_only=False):
     match task_type:
         case "chat":
             call_per_second = 50
@@ -90,42 +82,94 @@ def hook_callback_for_task(task, task_type, get_result):
 
     def rate_limit_exceeded(params):
         logging.warning(f"Rate limit exceeded for {task_type}")
-        call_hook_with_result(params['args'][1], [{"type": "error", "content": "Rate limit exceeded"}], status="rejected")
+        call_hook_with_result(
+            params['args'][1],
+            [{"type": "error", "content": "Rate limit exceeded"}],
+            status="rejected")
 
-    @on_exception(constant, RateLimitException, max_tries=3, on_giveup=rate_limit_exceeded, interval=10)
-    @limits(calls=call_per_second, period=1)
-    def inner_func(data, hook):
-        try:
-            api_resp = task(data)
-            logging.debug(api_resp.json() if api_resp else "dummy response")
-            result = get_result(api_resp)
-            call_hook_with_result(hook, [{"type": task_type, "content": result}], api_response=api_resp)
-        except OpenAIError as e:
-            logging.error(f"{task_type}: task not finished!")
-            logging.error(f"Data: {data}")
-            logging.error(f"Hook: {hook}")
-            logging.error(f"With error: {e}")
-            call_hook_with_result(hook, [{"type": task_type, "content": str(e)}], status="failed")
+    if not rate_control_only:
+        @on_exception(
+            constant,
+            RateLimitException,
+            max_tries=2,
+            on_giveup=rate_limit_exceeded,
+            interval=10,
+            raise_on_giveup=False)
+        @limits(calls=call_per_second, period=1)
+        def inner_func(data, hook):
+            try:
+                api_resp = task(data)
+                logging.debug(api_resp.json() if api_resp else "dummy response")
+                result = get_result(api_resp)
+                if hook:
+                    call_hook_with_result(hook, [{"type": task_type, "content": result}], api_response=api_resp)
+            except OpenAIError as e:
+                logging.error(f"{task_type}: task not finished!")
+                logging.error(f"Data: {data}")
+                logging.error(f"Hook: {hook}")
+                logging.error(f"With error: {e}")
+                call_hook_with_result(hook, [{"type": task_type, "content": str(e)}], status="failed")
+    else:
+        @limits(calls=call_per_second, period=1)
+        def inner_func(_d, _h):
+            pass
 
     return inner_func
 
 
 class DoTask:
     def __init__(self):
-        self.tasks = {
+        self.actual_tasks = {
             "chat": hook_callback_for_task(chat, "chat", lambda x: x.choices[0].message.content),
-            "image-generation": hook_callback_for_task(image_generation, "image-generation", lambda x: x.data[0].url),
-            "image-recognition": hook_callback_for_task(vision, "image-recognition", lambda x: x.choices[0].message.content),
-            # "audio-generation": hook_callback_for_task(tts, "audio-generation", lambda x: x.choices[0].message.content),
-            # "audio-recognition": hook_callback_for_task(transcribe_to_text, "audio-recognition", lambda x: x.choices[0].message.content),
-            "dummy": hook_callback_for_task(lambda x: sleep(5), "dummy", lambda x: "this is a dummy task")
+            "image-generation":
+                hook_callback_for_task(
+                    image_generation,
+                    "image-generation",
+                    lambda x: x.data[0].url
+                ),
+            "image-recognition":
+                hook_callback_for_task(
+                    vision,
+                    "image-recognition",
+                    lambda x: x.choices[0].message.content
+                ),
+            # dummy task
+            "dummy":
+                hook_callback_for_task(
+                    lambda x: sleep(5),
+                    "dummy",
+                    lambda x: "this is a dummy task"
+                )
+        }
+        self.rated_tasks = {
+            # only for rate limit checking.
+            "audio-generation":
+                hook_callback_for_task(
+                    tts,
+                    "audio-generation",
+                    lambda _: "OK", rate_control_only=True
+                ),
+            "audio-recognition":
+                hook_callback_for_task(
+                    transcribe_to_text,
+                    "audio-recognition",
+                    lambda _: "OK",
+                    rate_control_only=True
+                ),
         }
 
     def create(self, task_type, data, hook):
-        if task_type not in self.tasks:
+        if task_type not in self.actual_tasks:
             logging.error(f"Task type '{task_type}' not found")
             return False
-        thread = Thread(target=self.tasks[task_type], args=(data, hook))
+        thread = Thread(target=self.actual_tasks[task_type], args=(data, hook))
         thread.start()
+        return True
+
+    def check_limit(self, task_type):
+        try:
+            self.rated_tasks[task_type](None, None)
+        except RateLimitException:
+            return False
         return True
 
