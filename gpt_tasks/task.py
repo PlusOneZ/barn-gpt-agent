@@ -9,6 +9,8 @@ from ratelimit import limits, RateLimitException
 
 from call_hook.send_results import call_hook_with_result
 
+from constants import CHAT_SYSTEM_PROMPT_ZH
+
 load_dotenv()
 
 client = OpenAI()
@@ -20,7 +22,7 @@ client = OpenAI()
 def chat(user_input: []):
     logging.info("Chat completion called with user input: '{}'".format(user_input))
     # check user_input style
-    send_input = [{"role": "system", "content": "You're a helpful assistant."}]
+    send_input = [{"role": "system", "content": CHAT_SYSTEM_PROMPT_ZH}]
     send_input.extend([
         {"role": "user", "content": i} if isinstance(i, str)
         else {"role": i["role"], "content": i["content"]}

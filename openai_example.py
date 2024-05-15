@@ -10,18 +10,18 @@ if __name__ == "__main__":
     # client = OpenAI(
     #   api_key=os.environ.get("CUSTOM_ENV_NAME"),
     # )
-    mode = "tts"
+    mode = "chat"
     if mode == "chat":
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system",
                  "content":
-                     "This is a test, just say 'Hello'"
+                     '''你是一个为用户提供帮助的助手，请尽量提供内容丰富有帮助的输出。请使用Markdown语法来格式化你的输出。'''
                  },
                 {"role": "user",
                  "content":
-                     "Hello!"
+                     "巴马矿泉水的宣传片文案"
                  }
             ]
         )
