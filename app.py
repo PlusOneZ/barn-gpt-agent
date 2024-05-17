@@ -2,11 +2,12 @@ from flask import Flask
 from flask import request
 
 import logging
+from datetime import datetime
 
 from gpt_tasks import DoTask
 
-
-logging.basicConfig(level=logging.DEBUG)
+time = datetime.now().isoformat()
+logging.basicConfig(filename=f'logs/{time}.log', encoding='utf-8', level=logging.DEBUG)
 
 app = Flask(__name__)
 

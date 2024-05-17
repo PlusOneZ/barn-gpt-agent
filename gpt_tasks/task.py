@@ -9,7 +9,7 @@ from ratelimit import limits, RateLimitException
 
 from call_hook.send_results import call_hook_with_result
 
-from constants import CHAT_SYSTEM_PROMPT_ZH
+from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH
 
 load_dotenv()
 
@@ -50,9 +50,9 @@ def image_generation(user_prompt: str):
 def vision(user_input: []):
     logging.info("Vision chat called with user input: '{}'".format(user_input))
     completion = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-4o",
         messages=user_input,
-        max_tokens=200,
+        max_tokens=VISION_MAX_LENGTH,
     )
     return completion
 
