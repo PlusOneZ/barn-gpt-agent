@@ -17,9 +17,9 @@ def call_hook_with_result(hook: str, results: [], status="done", api_response=No
     # corresponding to the backend URL
     url = os.getenv('NODE_SERVER_URL')
     ip = os.getenv('NODE_SERVER_IP')
-    regex = (r"^((http:\/\/" + url + r")" +
-             r"|(https:\/\/" + url + r")"
-             r"|(" + ip + r"))(:[0-9]+)?\/task\/[a-zA-Z0-9\-]+\/hook")
+    regex = (r"^((https?:\/\/)?((" + url +
+             r")|(" + ip +
+             r")|(localhost)))(:[0-9]+)?\/task\/[a-zA-Z0-9\-]+\/hook")
     if not re.match(regex, hook):
         logging.error(f"Hook '{hook}' is not legal")
         return 400
