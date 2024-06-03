@@ -9,7 +9,7 @@ from ratelimit import limits, RateLimitException
 
 from call_hook.send_results import call_hook_with_result
 
-from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH
+from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DALLE2_MODEL_COSTS
 
 load_dotenv()
 
@@ -142,7 +142,7 @@ class DoTask:
                 hook_callback_for_task(
                     image_generation,
                     "image-generation",
-                    lambda x: x.data[0].url
+                    lambda x: (x.data[0].url, DALLE2_MODEL_COSTS['1024x1024'])
                 ),
             "image-recognition":
                 hook_callback_for_task(
@@ -155,7 +155,7 @@ class DoTask:
                 hook_callback_for_task(
                     lambda x: sleep(5),
                     "dummy",
-                    lambda x: "this is a dummy task"
+                    lambda x:("this is a dummy task", 0)
                 )
         }
         self.rated_tasks = {
