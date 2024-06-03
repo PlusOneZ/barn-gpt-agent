@@ -102,9 +102,13 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
             try:
                 api_resp = task(data)
                 logging.debug(api_resp.json() if api_resp else "dummy response")
-                result = get_result(api_resp)
+                result, usage = get_result(api_resp)
                 if hook:
-                    call_hook_with_result(hook, [{"type": task_type, "content": result}], api_response=api_resp)
+                    call_hook_with_result(hook, [{
+                        "type": task_type,
+                        "content": result,
+                        "tokens_used": usage
+                    }], api_response=api_resp)
             except OpenAIError as e:
                 logging.error(f"{task_type}: task not finished!")
                 logging.error(f"Data: {data}")
@@ -129,7 +133,11 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
 class DoTask:
     def __init__(self):
         self.actual_tasks = {
-            "chat": hook_callback_for_task(chat, "chat", lambda x: x.choices[0].message.content),
+            "chat": hook_callback_for_task(
+                chat,
+                "chat",
+                lambda x: (x.choices[0].message.content, x.usage.total_tokens)
+            ),
             "image-generation":
                 hook_callback_for_task(
                     image_generation,
@@ -140,7 +148,7 @@ class DoTask:
                 hook_callback_for_task(
                     vision,
                     "image-recognition",
-                    lambda x: x.choices[0].message.content
+                    lambda x: (x.choices[0].message.content, x.usage.total_tokens)
                 ),
             # dummy task
             "dummy":
