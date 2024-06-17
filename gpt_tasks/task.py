@@ -10,6 +10,7 @@ from ratelimit import limits, RateLimitException
 from call_hook.send_results import call_hook_with_result
 
 from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DALLE2_MODEL_COSTS
+from .utils import get_price_from_resp, usd_to_cny
 
 load_dotenv()
 
@@ -107,7 +108,8 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
                     call_hook_with_result(hook, [{
                         "type": task_type,
                         "content": result,
-                        "tokens_used": usage
+                        "tokens_used": usage,
+                        "usage": usage
                     }], api_response=api_resp)
             except OpenAIError as e:
                 logging.error(f"{task_type}: task not finished!")
@@ -136,19 +138,19 @@ class DoTask:
             "chat": hook_callback_for_task(
                 chat,
                 "chat",
-                lambda x: (x.choices[0].message.content, x.usage.total_tokens)
+                lambda x: (x.choices[0].message.content, get_price_from_resp(x))
             ),
             "image-generation":
                 hook_callback_for_task(
                     image_generation,
                     "image-generation",
-                    lambda x: (x.data[0].url, DALLE2_MODEL_COSTS['1024x1024'])
+                    lambda x: (x.data[0].url, usd_to_cny(DALLE2_MODEL_COSTS['1024x1024']))
                 ),
             "image-recognition":
                 hook_callback_for_task(
                     vision,
                     "image-recognition",
-                    lambda x: (x.choices[0].message.content, x.usage.total_tokens)
+                    lambda x: (x.choices[0].message.content, get_price_from_resp(x))
                 ),
             # dummy task
             "dummy":
