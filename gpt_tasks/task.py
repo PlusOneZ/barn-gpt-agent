@@ -9,8 +9,8 @@ from ratelimit import limits, RateLimitException
 
 from call_hook.send_results import call_hook_with_result
 
-from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DALLE2_MODEL_COSTS
-from .utils import get_price_from_resp, usd_to_cny
+from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH
+from .utils import get_price_from_resp, usd_to_cny, get_image_gen_price_from_model
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ client = OpenAI()
 # Calling to OpenAI chat completion API with
 # Params:
 #   - user_input: list of strings or dict with role and content
-def chat(user_input: []):
+def chat(user_input: [], model):
     logging.info("Chat completion called with user input: '{}'".format(user_input))
     # check user_input style
     send_input = [{"role": "system", "content": CHAT_SYSTEM_PROMPT_ZH}]
@@ -30,28 +30,29 @@ def chat(user_input: []):
         for i in user_input
     ])
     completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model=model if model else "gpt-3.5-turbo",
         messages=send_input
     )
     return completion
 
 
-def image_generation(user_prompt: str):
+def image_generation(user_prompt: str, model):
     logging.info(f"Image Generation called with prompt: {user_prompt}")
     response = client.images.generate(
-        model='dall-e-2',
+        model=model if model else 'dall-e-2',
         prompt=user_prompt,
         size='1024x1024',
         quality='standard',
         n=1
     )
+    response.usage = get_image_gen_price_from_model(model, '1024x1024')
     return response
 
 
-def vision(user_input: []):
+def vision(user_input: [], model):
     logging.info("Vision chat called with user input: '{}'".format(user_input))
     completion = client.chat.completions.create(
-        model="gpt-4o",
+        model=model if model else "gpt-4o",
         messages=user_input,
         max_tokens=VISION_MAX_LENGTH,
     )
@@ -99,9 +100,9 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
             interval=10,
             raise_on_giveup=False)
         @limits(calls=call_per_second, period=1)
-        def inner_func(data, hook):
+        def inner_func(data, hook, model=None):
             try:
-                api_resp = task(data)
+                api_resp = task(data, model)
                 logging.debug(api_resp.json() if api_resp else "dummy response")
                 result, usage = get_result(api_resp)
                 if hook:
@@ -144,7 +145,7 @@ class DoTask:
                 hook_callback_for_task(
                     image_generation,
                     "image-generation",
-                    lambda x: (x.data[0].url, usd_to_cny(DALLE2_MODEL_COSTS['1024x1024']))
+                    lambda x: (x.data[0].url, x.usage)
                 ),
             "image-recognition":
                 hook_callback_for_task(
@@ -177,11 +178,11 @@ class DoTask:
                 ),
         }
 
-    def create(self, task_type, data, hook):
+    def create(self, task_type, data, hook, model=None):
         if task_type not in self.actual_tasks:
             logging.error(f"Task type '{task_type}' not found")
             return False
-        thread = Thread(target=self.actual_tasks[task_type], args=(data, hook))
+        thread = Thread(target=self.actual_tasks[task_type], args=(data, hook, model))
         thread.start()
         return True
 

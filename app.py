@@ -37,8 +37,9 @@ def dummy_api():
 def chatting_api():
     data = request.json['data']
     hook = request.json['hook']
+    model = request.json['model']
 
-    ret = task_manager.create("chat", data, hook)
+    ret = task_manager.create("chat", data, hook, model)
     return "OK" if ret else ("Failed", 400)
 
 
@@ -48,8 +49,9 @@ def chatting_api():
 def image_generation_api():
     data = request.json['data']
     hook = request.json['hook']
+    model = request.json['model']
 
-    ret = task_manager.create("image-generation", data["image_prompt"], hook)
+    ret = task_manager.create("image-generation", data["image_prompt"], hook, model)
     return "OK" if ret else ("Failed", 400)
 
 
@@ -73,8 +75,9 @@ def transcribe_to_text_api():
 def vision_api():
     data = request.json['data']
     hook = request.json['hook']
+    model = request.json['model']
 
-    ret = task_manager.create("image-recognition", data, hook)
+    ret = task_manager.create("image-recognition", data, hook, model)
     return "OK" if ret else ("Failed", 400)
 
 
