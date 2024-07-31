@@ -119,7 +119,7 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
                 logging.error(f"With error: {e}")
                 call_hook_with_result(
                     hook, [{
-                        "type": "3rd_party_err_msg",
+                        "type": "3rd_party_error",
                         "content": str(e),
                         "err_body": e.body if e.body else None,
                         "target_task": task_type,
