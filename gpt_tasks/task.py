@@ -109,7 +109,7 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
                     call_hook_with_result(hook, [{
                         "type": task_type,
                         "content": result,
-                        "tokens_used": usage,
+                        # "tokens_used": usage,
                         "usage": usage
                     }], api_response=api_resp)
             except OpenAIError as e:
@@ -158,7 +158,7 @@ class DoTask:
                 hook_callback_for_task(
                     lambda x: sleep(5),
                     "dummy",
-                    lambda x:("this is a dummy task", 0)
+                    lambda x: ("this is a dummy task", 0)
                 )
         }
         self.rated_tasks = {
