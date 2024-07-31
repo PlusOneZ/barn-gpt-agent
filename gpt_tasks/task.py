@@ -156,7 +156,7 @@ class DoTask:
             # dummy task
             "dummy":
                 hook_callback_for_task(
-                    lambda x: sleep(5),
+                    lambda x, m: sleep(5),
                     "dummy",
                     lambda x: ("this is a dummy task", 0)
                 )
