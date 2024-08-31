@@ -1,8 +1,4 @@
-from .constants import USD_PRICE_PER_TOKEN, USD_TO_CNY, DALLE_MODEL_COSTS
-
-
-def usd_to_cny(amount: float) -> float:
-    return amount * USD_TO_CNY
+from .constants import USD_PRICE_PER_TOKEN, DALLE_MODEL_COSTS
 
 
 def token_to_usd(token_usage, model: str) -> float:
@@ -23,7 +19,7 @@ def token_to_usd(token_usage, model: str) -> float:
 
 
 def get_price_from_resp(resp):
-    return usd_to_cny(token_to_usd(resp.usage, resp.model))
+    return token_to_usd(resp.usage, resp.model)
 
 
 def get_image_gen_price_from_model(model, resolution):
@@ -31,4 +27,4 @@ def get_image_gen_price_from_model(model, resolution):
         model = "dall-e-3"
     if resolution not in DALLE_MODEL_COSTS[model]:
         resolution = list(DALLE_MODEL_COSTS[model].keys())[-1]
-    return usd_to_cny(DALLE_MODEL_COSTS[model][resolution])
+    return DALLE_MODEL_COSTS[model].get(resolution, 0.080)
