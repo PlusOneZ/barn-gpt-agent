@@ -1,4 +1,4 @@
-from backoff import on_exception, constant
+from backoff import on_exception, runtime
 from openai import OpenAI, OpenAIError
 from dotenv import load_dotenv
 import logging
@@ -11,6 +11,8 @@ from call_hook.send_results import call_hook_with_result
 
 from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DEFAULT_MODELS, check_size_valid
 from .utils import get_price_from_resp, get_image_gen_price_from_model
+
+from random import random
 
 load_dotenv()
 
@@ -100,10 +102,11 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
 
     if not rate_control_only:
         @on_exception(
-            constant,
+            runtime,
             RateLimitException,
             max_tries=0,
             max_time=5,
+            value=lambda _: random() * 5 + 1,
             on_giveup=rate_limit_exceeded,
             raise_on_giveup=False)
         @limits(calls=call_per_period, period=60)
