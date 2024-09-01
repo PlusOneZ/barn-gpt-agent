@@ -75,34 +75,38 @@ def transcribe_to_text(_):
 def hook_callback_for_task(task, task_type, get_result, rate_control_only=False):
     match task_type:
         case "chat":
-            call_per_second = 50
+            call_per_period = 3500
         case "image-generation":
-            call_per_second = 5
+            call_per_period = 5
         case "image-recognition":
-            call_per_second = 20
+            call_per_period = 3500
         case "audio-generation":
-            call_per_second = 2
+            call_per_period = 100
         case "audio-recognition":
-            call_per_second = 2
+            call_per_period = 100
         case _:
-            call_per_second = 1  # for testing
+            call_per_period = 5  # for testing
 
     def rate_limit_exceeded(params):
         logging.warning(f"Rate limit exceeded for {task_type}")
         call_hook_with_result(
             params['args'][1],
-            [{"type": "error", "content": "Rate limit exceeded"}],
+            [{
+                "type": "error_rate_limit",
+                "content": "Rate limit exceeded",
+                "target_task": task_type,
+            }],
             status="rejected")
 
     if not rate_control_only:
         @on_exception(
             constant,
             RateLimitException,
-            max_tries=2,
+            max_tries=0,
+            max_time=5,
             on_giveup=rate_limit_exceeded,
-            interval=10,
             raise_on_giveup=False)
-        @limits(calls=call_per_second, period=1)
+        @limits(calls=call_per_period, period=60)
         def inner_func(data, hook, model=None, options=None):
             try:
                 api_resp = task(data, model, options)
@@ -139,7 +143,7 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
                     status="failed"
                 )
     else:
-        @limits(calls=call_per_second, period=1)
+        @limits(calls=call_per_period, period=60)
         def inner_func(_d, _h):
             pass
 
