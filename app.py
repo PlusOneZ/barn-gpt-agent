@@ -50,8 +50,9 @@ def image_generation_api():
     data = request.json['data']
     hook = request.json['hook']
     model = request.json['model']
+    options = request.json['options']
 
-    ret = task_manager.create("image-generation", data["image_prompt"], hook, model)
+    ret = task_manager.create("image-generation", data["image_prompt"], hook, model, options)
     return "OK" if ret else ("Failed", 400)
 
 
