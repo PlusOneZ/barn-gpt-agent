@@ -9,7 +9,7 @@ from ratelimit import limits, RateLimitException
 
 from call_hook.send_results import call_hook_with_result
 
-from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DEFAULT_MODELS, check_size_valid
+from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DEFAULT_MODELS, check_size_valid, check_quality_valid
 from .utils import get_price_from_resp, get_image_gen_price_from_model
 
 from random import random
@@ -40,8 +40,10 @@ def chat(user_input: [], model, _):
 
 def image_generation(user_prompt: str, model, options=None):
     _size = options.get("size", '1024x1024') if options else '1024x1024'
+    _quality = options.get("quality", 'standard') if options else 'standard'
     _model = model if model else DEFAULT_MODELS["image-generation"]
     _size = check_size_valid(_model, _size)
+    _quality = check_quality_valid(_quality)
     logging.info(f"Image Generation called with prompt: {user_prompt}")
     response = client.images.generate(
         model=_model,
@@ -50,7 +52,7 @@ def image_generation(user_prompt: str, model, options=None):
         quality='standard',
         n=1
     )
-    response.usage = get_image_gen_price_from_model(model, _size)
+    response.usage = get_image_gen_price_from_model(model, _size, _quality)
     return response
 
 

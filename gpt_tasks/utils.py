@@ -22,9 +22,11 @@ def get_price_from_resp(resp):
     return token_to_usd(resp.usage, resp.model)
 
 
-def get_image_gen_price_from_model(model, resolution):
+def get_image_gen_price_from_model(model, resolution, quality):
     if model not in DALLE_MODEL_COSTS:
         model = "dall-e-3"
-    if resolution not in DALLE_MODEL_COSTS[model]:
+    if quality not in DALLE_MODEL_COSTS[model]:
+        quality = list(DALLE_MODEL_COSTS[model].keys())[-1]
+    if resolution not in DALLE_MODEL_COSTS[model][quality]:
         resolution = list(DALLE_MODEL_COSTS[model].keys())[-1]
-    return DALLE_MODEL_COSTS[model].get(resolution, 0.080)
+    return DALLE_MODEL_COSTS[model][quality].get(resolution, 0.120)

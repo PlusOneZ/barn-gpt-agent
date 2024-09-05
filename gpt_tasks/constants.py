@@ -3,18 +3,28 @@ VISION_MAX_LENGTH = 512
 
 DALLE_MODEL_COSTS = {
     "dall-e-2": {
-        "1024x1024":    0.020,
-        "512x512":      0.018,
-        "256x256":      0.016,
+        "standard": {
+            "1024x1024": 0.020,
+            "512x512": 0.018,
+            "256x256": 0.016,
+        },
     },
     "dall-e-3": {
-        "1024x1024":    0.040,
-        "1024x1792":    0.080,
-        "1792x1024":    0.080,
+        "standard": {
+            "1024x1024": 0.040,
+            "1024x1792": 0.080,
+            "1792x1024": 0.080,
+        },
+        "hd": {
+            "1024x1024": 0.090,
+            "1024x1792": 0.120,
+            "1792x1024": 0.120,
+        },
     }
 }
 
 DEFAULT_SIZE = "1024x1024"
+DEFAULT_QUALITY = "standard"
 
 
 def check_size_valid(model, size):
@@ -23,6 +33,12 @@ def check_size_valid(model, size):
     if size not in DALLE_MODEL_COSTS[model]:
         return DEFAULT_SIZE
     return size
+
+
+def check_quality_valid(quality):
+    if quality not in ["standard", "hd"]:
+        return DEFAULT_QUALITY
+    return quality
 
 
 ONE_MILLION = 1000000
