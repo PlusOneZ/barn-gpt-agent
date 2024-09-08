@@ -44,6 +44,7 @@ def image_generation(user_prompt: str, model, options=None):
     _model = model if model else DEFAULT_MODELS["image-generation"]
     _size = check_size_valid(_model, _size)
     _quality = check_quality_valid(_quality)
+    logging.info(f"size and quality: {_size}, {_quality}")
     logging.info(f"Image Generation called with prompt: {user_prompt}")
     response = client.images.generate(
         model=_model,
@@ -138,6 +139,9 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
                     }],
                     status="failed")
             except Exception as e:
+                logging.error(f"{task_type}: task not finished!")
+                logging.error(f"Data: {data}")
+                logging.error(f"With error: {str(e)}")
                 call_hook_with_result(
                     hook, [{
                         "type": "system_error",

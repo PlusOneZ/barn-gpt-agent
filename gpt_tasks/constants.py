@@ -30,7 +30,7 @@ DEFAULT_QUALITY = "standard"
 def check_size_valid(model, size):
     if model not in DALLE_MODEL_COSTS:
         return DEFAULT_SIZE
-    if size not in DALLE_MODEL_COSTS[model]:
+    if size not in DALLE_MODEL_COSTS[model][DEFAULT_QUALITY]:
         return DEFAULT_SIZE
     return size
 
