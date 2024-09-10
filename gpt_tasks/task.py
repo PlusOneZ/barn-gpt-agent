@@ -50,7 +50,7 @@ def image_generation(user_prompt: str, model, options=None):
         model=_model,
         prompt=user_prompt,
         size=_size,
-        quality='standard',
+        quality=_quality,
         n=1
     )
     response.usage = get_image_gen_price_from_model(model, _size, _quality)
