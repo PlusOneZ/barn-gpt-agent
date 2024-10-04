@@ -1,9 +1,13 @@
 from backoff import on_exception, runtime
 from openai import OpenAI, OpenAIError
 from dotenv import load_dotenv
+from gradio_client import Client
 import logging
 from time import sleep
 from threading import Thread
+import json
+import re
+import time
 
 from ratelimit import limits, RateLimitException
 
@@ -16,8 +20,9 @@ from random import random
 
 load_dotenv()
 
-client = OpenAI()
-
+client_openai = OpenAI()
+client_flux1_schnell = Client("black-forest-labs/FLUX.1-schnell")
+client_flux1_dev = Client("black-forest-labs/FLUX.1-dev")
 
 # Calling to OpenAI chat completion API with
 # Params:
@@ -31,7 +36,7 @@ def chat(user_input: [], model, _):
         else {"role": i["role"], "content": i["content"]}
         for i in user_input
     ])
-    completion = client.chat.completions.create(
+    completion = client_openai.chat.completions.create(
         model=model if model else DEFAULT_MODELS["chat"],
         messages=send_input
     )
@@ -39,6 +44,72 @@ def chat(user_input: [], model, _):
 
 
 def image_generation(user_prompt: str, model, options=None):
+    if model == "se1-flux1-schnell":
+        return image_generation_flux1_schnell(user_prompt, model, options)
+    elif model == "se1-flux1-dev":
+        return image_generation_flux1_dev(user_prompt, model, options)
+    else:
+        return image_generation_openai(user_prompt, model, options)
+
+def image_generation_flux1_schnell(user_prompt: str, model, options=None):
+    result = client_flux1_schnell.predict(
+		prompt=user_prompt,
+		seed=0,
+		randomize_seed=True,
+		width=1024, #TODO
+		height=1024, #TODO
+		guidance_scale=3.5,
+		num_inference_steps=28,
+		api_name="/infer"
+    )
+    return_result(result, user_prompt)
+
+def image_generation_flux1_dev(user_prompt: str, model, options=None):
+    result = client_flux1_dev.predict(
+		prompt=user_prompt,
+		seed=0,
+		randomize_seed=True,
+		width=1024, #TODO
+		height=1024, #TODO
+		guidance_scale=3.5,
+		num_inference_steps=28,
+		api_name="/infer"
+    )
+    return_result(result, user_prompt)
+
+def return_result(result: str, prompt: str):
+    # Get the current timestamp as an integer
+    current_timestamp = int(time.time())
+    # Source string
+    #sample: "('/private/var/folders/mw/16j_jhw947x6psjnhxds_tw80000gn/T/gradio/76888107c393838d6ba4df2972c540cdc658af356161af8a62fea919cd25291b/image.webp', 1501795741)"
+    source_string = result
+    # Use regex to extract the file path (URL) and seed from the source string
+    match = re.match(r"\('(.*?)', (\d+)\)", source_string)
+    if match:
+        url = "file://" + match.group(1)  # Add "file://" prefix to the file path
+        seed = int(match.group(2))  # seed
+    else:
+        raise ValueError("Source string format is incorrect")
+    # Define the target JSON structure and fill the parsed data
+    data = {
+        "created": current_timestamp,
+        "data": [
+            {
+                "b64_json": None,  # Assuming b64_json is None
+                "revised_prompt": prompt,
+                "url": url,  # Use the parsed file path as the URL with "file://" prefix
+                "seed" : seed
+            }
+        ],
+        "usage": 0.04 #fix here
+    }
+    # Convert the dictionary to a JSON string
+    json_string = json.dumps(data, indent=4)
+    ## Print the resulting JSON string
+    #print(json_string)
+    return json_string
+
+def image_generation_openai(user_prompt: str, model, options=None):
     _size = options.get("size", '1024x1024') if options else '1024x1024'
     _quality = options.get("quality", 'standard') if options else 'standard'
     _model = model if model else DEFAULT_MODELS["image-generation"]
@@ -46,7 +117,7 @@ def image_generation(user_prompt: str, model, options=None):
     _quality = check_quality_valid(_quality)
     logging.info(f"size and quality: {_size}, {_quality}")
     logging.info(f"Image Generation called with prompt: {user_prompt}")
-    response = client.images.generate(
+    response = client_openai.images.generate(
         model=_model,
         prompt=user_prompt,
         size=_size,
@@ -59,7 +130,7 @@ def image_generation(user_prompt: str, model, options=None):
 
 def vision(user_input: [], model, _):
     logging.info("Vision chat called with user input: '{}'".format(user_input))
-    completion = client.chat.completions.create(
+    completion = client_openai.chat.completions.create(
         model=model if model else DEFAULT_MODELS["image-recognition"],
         messages=user_input,
         max_tokens=VISION_MAX_LENGTH,
