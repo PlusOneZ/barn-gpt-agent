@@ -6,8 +6,7 @@ from datetime import datetime
 
 from gpt_tasks import DoTask
 
-time = datetime.now().isoformat()
-logging.basicConfig(filename=f'logs/{time}.log', encoding='utf-8', level=logging.DEBUG)
+
 
 app = Flask(__name__)
 
@@ -50,7 +49,7 @@ def image_generation_api():
     data = request.json['data']
     hook = request.json['hook']
     model = request.json['model']
-    options = request.json['options']
+    options = request.json.get('options', None)
 
     ret = task_manager.create("image-generation", data["image_prompt"], hook, model, options)
     return "OK" if ret else ("Failed", 400)

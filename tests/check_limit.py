@@ -1,5 +1,5 @@
 import unittest
-from gpt_tasks.task import DoTask
+from gpt_tasks import DoTask
 import requests
 
 class MyTestCase(unittest.TestCase):

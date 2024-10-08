@@ -1,4 +1,4 @@
 
 # export DoTask class
 
-from .task import DoTask
+from .task_skeleton import DoTask
