@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from gradio_client import Client
 import logging
 import time
+import os
 
 from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DEFAULT_MODELS, check_size_valid, check_quality_valid
 from .utils import get_image_gen_price_from_model
@@ -10,8 +11,8 @@ from .utils import get_image_gen_price_from_model
 load_dotenv()
 
 client_openai = OpenAI()
-client_flux1_schnell = Client("black-forest-labs/FLUX.1-schnell")
-client_flux1_dev = Client("black-forest-labs/FLUX.1-dev")
+client_flux1_schnell = Client("BarnGPT/FLUX.1-schnell", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
+client_flux1_dev = Client("BarnGPT/FLUX.1-dev", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
 
 
 # Calling to OpenAI chat completion API with
@@ -37,7 +38,7 @@ def image_generation(user_prompt: str, model, options=None):
     if model == "se1-flux1-schnell":
         return huggingface_flux_image_generation(client_flux1_schnell, user_prompt, options)
     elif model == "se1-flux1-dev":
-        return huggingface_flux_image_generation(client_flux1_schnell, user_prompt, options)
+        return huggingface_flux_image_generation(client_flux1_dev, user_prompt, options)
     else:
         return image_generation_openai(user_prompt, model, options)
 
