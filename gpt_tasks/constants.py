@@ -23,6 +23,9 @@ DALLE_MODEL_COSTS = {
     }
 }
 
+# 使用huggingface的flux模型生成图像的单价, 暂定
+HF_FLUX_MODE_COST = .1
+
 DEFAULT_SIZE = "1024x1024"
 DEFAULT_QUALITY = "standard"
 
