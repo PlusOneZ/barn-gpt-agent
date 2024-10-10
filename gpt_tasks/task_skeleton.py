@@ -5,6 +5,7 @@ from time import sleep
 
 from backoff import on_exception, runtime
 from openai import OpenAIError
+from gradio_client.exceptions import AppError
 from ratelimit import RateLimitException, limits
 
 from call_hook.send_results import call_hook_with_result
@@ -97,6 +98,19 @@ def hook_callback_for_task(task, task_type, get_result, rate_control_only=False)
                         "target_task": task_type,
                     }],
                     status="failed")
+            except AppError as e:
+                logging.error(f"{task_type}: Gradio错误!")
+                logging.error(f"数据: {data}")
+                logging.error(f"错误信息: {str(e)}")
+                call_hook_with_result(
+                    hook, [{
+                        "type": "3rd_party_error",
+                        "content": "HF app error, you may encounter a rate limit control. No charge for this call.",
+                        "err_body": f"HF app error, you may encounter a rate limit control: {e.__class__.__name__}.",
+                        "target_task": task_type,
+                    }],
+                    status="failed"
+                )
             except Exception as e:
                 logging.error(f"{task_type}: task not finished!")
                 logging.error(f"Data: {data}")
