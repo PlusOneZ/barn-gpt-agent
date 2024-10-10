@@ -133,7 +133,7 @@ class OpenaiLikeResult:
 
 
 
-def return_result(result: tuple, prompt: str):
+def return_result(result: tuple, prompt: str, cost: float):
     """
     返回一个类似于OpenAI的Result类
 
@@ -143,7 +143,7 @@ def return_result(result: tuple, prompt: str):
     返回:
     返回一个类似于OpenAI的Result类
     """
-    return OpenaiLikeResult(result[0], result[1], prompt, 0.04)
+    return OpenaiLikeResult(result[0], result[1], prompt, cost)
 
 
 def image_generation_openai(user_prompt: str, model, options=None):
