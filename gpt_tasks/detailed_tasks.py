@@ -1,20 +1,38 @@
 from openai import OpenAI
 from dotenv import load_dotenv
 from gradio_client import Client
+import replicate
+
 import logging
 import time
 import os
+import uuid
 
-from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DEFAULT_MODELS, HF_FLUX_MODE_COST, check_size_valid, check_quality_valid
+#from .constants import CHAT_SYSTEM_PROMPT_ZH, VISION_MAX_LENGTH, DEFAULT_MODELS, HF_FLUX_MODE_COST, check_size_valid, check_quality_valid
+from .constants import (
+    CHAT_SYSTEM_PROMPT_ZH,
+    VISION_MAX_LENGTH,
+    DEFAULT_MODELS,
+    HF_FLUX_MODE_COST,
+    check_size_valid,
+    check_quality_valid,
+    REP_IG_SAVE_PATH,
+    REP_COST_IG_FLUX_SCHNELL,
+    REP_COST_IG_FLUX_DEV,
+    REP_COST_IG_FLUX_PRO,
+    REP_COST_IG_FLUX_1P1_PRO
+)
+
 from .utils import get_image_gen_price_from_model
+
 
 load_dotenv()
 
 # 初始化OpenAI客户端
 client_openai = OpenAI()
 # 初始化huggingface的flux模型客户端
-client_flux1_schnell = Client("BarnGPT/FLUX.1-schnell", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
-client_flux1_dev = Client("BarnGPT/FLUX.1-dev", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
+client_se1_flux1_schnell = Client("BarnGPT/FLUX.1-schnell", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
+client_se1_flux1_dev = Client("BarnGPT/FLUX.1-dev", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
 
 
 def chat(user_input: list, model, _):
@@ -55,9 +73,17 @@ def image_generation(user_prompt: str, model, options=None):
     
     """
     if model == "se1-flux1-schnell":
-        return huggingface_flux_image_generation(client_flux1_schnell, user_prompt, options)
+        return image_generation_hf_flux(client_se1_flux1_schnell, user_prompt, options)
     elif model == "se1-flux1-dev":
-        return huggingface_flux_image_generation(client_flux1_dev, user_prompt, options)
+        return image_generation_hf_flux(client_se1_flux1_dev, user_prompt, options)
+    elif model == "se2-flux1-schnell":
+        return image_generation_rep_flux("black-forest-labs/flux-schnell",user_prompt, REP_COST_IG_FLUX_SCHNELL,options)
+    elif model == "se2-flux1-dev":
+        return image_generation_rep_flux("black-forest-labs/flux-dev",user_prompt, REP_COST_IG_FLUX_DEV,options)
+    elif model == "se2-flux1-pro":
+        return image_generation_rep_flux("black-forest-labs/flux-pro",user_prompt, REP_COST_IG_FLUX_PRO,options)
+    elif model == "se2-flux1.1-pro":
+        return image_generation_rep_flux("black-forest-labs/flux-1.1-pro",user_prompt, REP_COST_IG_FLUX_1P1_PRO,options)  
     else:
         return image_generation_openai(user_prompt, model, options)
 
@@ -69,7 +95,7 @@ def image_generation(user_prompt: str, model, options=None):
 #   - options: 可选参数，包含生成图像的其他选项
 # 返回:
 #   根据不同模型调用相应的图像生成函数并返回结果
-def huggingface_flux_image_generation(client: Client, user_prompt: str, options=None):
+def image_generation_hf_flux(client: Client, user_prompt: str, options=None):
     _size = options.get("size", '1024x1024') if options else '1024x1024'
     _w, _h = _size.split('x')
     result = client.predict(
@@ -80,8 +106,55 @@ def huggingface_flux_image_generation(client: Client, user_prompt: str, options=
         num_inference_steps=28,
         api_name="/infer"
     )
-    logging.info(f"Result: {result}, prompt: {user_prompt}")
-    return return_result(result, user_prompt, HF_FLUX_MODE_COST)
+    logging.info(f"ig_hf_flux: Result: {result}, prompt: {user_prompt}")
+    return return_hf_ig_result(result, user_prompt, HF_FLUX_MODE_COST)
+
+
+def image_generation_rep_flux(model: str, user_prompt: str, cost: float, options=None):
+    _quality = options.get("quality", 'hd') if options else 'hd'
+    # Assume options has either 'hd' or 'standard' as values
+    if _quality == "hd":
+        _output_quality = 100
+    elif _quality == "standard":
+        _output_quality = 80
+    else:
+        _output_quality = 100
+
+    _size = options.get("size", '1024x1024') if options else '1024x1024'
+    # Assume size can be '1024x1024', '1024x1792', or '1792x1024'
+    if _size == "1024x1024":
+        _aspect_ratio = "1:1"
+    elif _size == "1024x1792":
+        _aspect_ratio = "9:16"
+    elif _size == "1792x1024":
+        _aspect_ratio = "16:9"
+    else:
+        _aspect_ratio = "1:1"
+
+    output = replicate.run(
+        model,
+        input={
+            "prompt": user_prompt,
+            "go_fast": True,
+            "megapixels": "1",
+            "num_outputs": 1, #maximum 4
+            "aspect_ratio": _aspect_ratio,
+            "output_format": "webp",
+            "output_quality": _output_quality,
+            "num_inference_steps": 4
+        }
+    )
+    # Generate a random filename with .webp extension
+    random_filename = str(uuid.uuid4()) + ".webp"
+    # Combine the path and the random filename
+    file_path = os.path.join(REP_IG_SAVE_PATH, random_filename)
+    # Read the file contents
+    file_contents = output[0].read()
+    # Save the file locally in the specified directory
+    with open(file_path, "wb") as file:
+        file.write(file_contents)
+    logging.info(f"ig_rep_flux: Result: {file_path}, prompt: {user_prompt}")
+    return return_rep_ig_result(file_path, user_prompt, cost)
 
 
 # 创建一个类似于OpenAI的Result类
@@ -133,7 +206,7 @@ class OpenaiLikeResult:
 
 
 
-def return_result(result: tuple, prompt: str, cost: float):
+def return_hf_ig_result(result: tuple, prompt: str, cost: float):
     """
     返回一个类似于OpenAI的Result类
 
@@ -144,6 +217,18 @@ def return_result(result: tuple, prompt: str, cost: float):
     返回一个类似于OpenAI的Result类
     """
     return OpenaiLikeResult(result[0], result[1], prompt, cost)
+
+def return_rep_ig_result(result: str, prompt: str, cost: float):
+    """
+    返回一个类似于OpenAI的Result类
+
+    参数:
+    result: 生成图像的文件路径
+    prompt: 用户输入的提示文本
+    返回:
+    返回一个类似于OpenAI的Result类
+    """
+    return OpenaiLikeResult(result, 0, prompt, cost)
 
 
 def image_generation_openai(user_prompt: str, model, options=None):
