@@ -77,13 +77,13 @@ def image_generation(user_prompt: str, model, options=None):
     elif model == "se1-flux1-dev":
         return image_generation_hf_flux(client_se1_flux1_dev, user_prompt, options)
     elif model == "se2-flux1-schnell":
-        return image_generation_rep_flux("black-forest-labs/flux-schnell",user_prompt, REP_COST_IG_FLUX_SCHNELL,options)
+        return image_generation_rep_flux(model, "black-forest-labs/flux-schnell",user_prompt, REP_COST_IG_FLUX_SCHNELL,options)
     elif model == "se2-flux1-dev":
-        return image_generation_rep_flux("black-forest-labs/flux-dev",user_prompt, REP_COST_IG_FLUX_DEV,options)
+        return image_generation_rep_flux(model, "black-forest-labs/flux-dev",user_prompt, REP_COST_IG_FLUX_DEV,options)
     elif model == "se2-flux1-pro":
-        return image_generation_rep_flux("black-forest-labs/flux-pro",user_prompt, REP_COST_IG_FLUX_PRO,options)
+        return image_generation_rep_flux(model, "black-forest-labs/flux-pro",user_prompt, REP_COST_IG_FLUX_PRO,options)
     elif model == "se2-flux1.1-pro":
-        return image_generation_rep_flux("black-forest-labs/flux-1.1-pro",user_prompt, REP_COST_IG_FLUX_1P1_PRO,options)  
+        return image_generation_rep_flux(model, "black-forest-labs/flux-1.1-pro",user_prompt, REP_COST_IG_FLUX_1P1_PRO,options)  
     else:
         return image_generation_openai(user_prompt, model, options)
 
@@ -110,7 +110,7 @@ def image_generation_hf_flux(client: Client, user_prompt: str, options=None):
     return return_hf_ig_result(result, user_prompt, HF_FLUX_MODE_COST)
 
 
-def image_generation_rep_flux(model: str, user_prompt: str, cost: float, options=None):
+def image_generation_rep_flux(model: str, modelfn: str, user_prompt: str, cost: float, options=None):
     _quality = options.get("quality", 'hd') if options else 'hd'
     # Assume options has either 'hd' or 'standard' as values
     if _quality == "hd":
@@ -131,31 +131,66 @@ def image_generation_rep_flux(model: str, user_prompt: str, cost: float, options
     else:
         _aspect_ratio = "1:1"
 
-    output = replicate.run(
-        model,
-        input={
-            "prompt": user_prompt,
-            "go_fast": True,
-            "megapixels": "1",
-            "num_outputs": 1, #maximum 4
-            "aspect_ratio": _aspect_ratio,
-            "output_format": "webp",
-            "output_quality": _output_quality,
-            "num_inference_steps": 4
-        }
-    )
+    # Read the file contents
+    file_contents = ig_replicate_run(model, modelfn, user_prompt, _aspect_ratio, _output_quality)
+
     # Generate a random filename with .webp extension
     random_filename = str(uuid.uuid4()) + ".webp"
     # Combine the path and the random filename
     file_path = os.path.join(REP_IG_SAVE_PATH, random_filename)
-    # Read the file contents
-    file_contents = output[0].read()
+
     # Save the file locally in the specified directory
     with open(file_path, "wb") as file:
         file.write(file_contents)
     logging.info(f"ig_rep_flux: Result: {file_path}, prompt: {user_prompt}")
     return return_rep_ig_result(file_path, user_prompt, cost)
 
+def ig_replicate_run(model: str, modelfn: str, user_prompt:str, aspect_ratio: str, output_quality: int):
+    if model == "se2-flux1-schnell":
+        pro = False    
+    elif model == "se2-flux1-dev":
+        pro = False
+    elif model == "se2-flux1-pro":
+        pro = True
+    elif model == "se2-flux1.1-pro":
+        pro = True 
+    else:
+        pro = False
+    if pro:
+        output = replicate.run(
+            modelfn,
+            input={
+                "steps": 25,
+                #"width": 1024,
+                #"height": 1024,
+                "prompt": user_prompt,
+                "guidance": 3,
+                "interval": 2,
+                "aspect_ratio": aspect_ratio,
+                "output_format": "webp",
+                "output_quality": output_quality,
+                "safety_tolerance": 2,
+                "prompt_upsampling": False
+            }
+        )
+        file_contents = output.read()
+        return file_contents
+    else:
+        output = replicate.run(
+            model,
+            input={
+                "prompt": user_prompt,
+                "go_fast": True,
+                "megapixels": "1",
+                "num_outputs": 1, #maximum 4
+                "aspect_ratio": aspect_ratio,
+                "output_format": "webp",
+                "output_quality": output_quality,
+                "num_inference_steps": 4
+            }
+        )
+        file_contents = output[0].read()
+        return file_contents
 
 # 创建一个类似于OpenAI的Result类
 class OpenaiLikeResult:
