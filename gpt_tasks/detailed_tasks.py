@@ -177,7 +177,7 @@ def ig_replicate_run(model: str, modelfn: str, user_prompt:str, aspect_ratio: st
         return file_contents
     else:
         output = replicate.run(
-            model,
+            modelfn,
             input={
                 "prompt": user_prompt,
                 "go_fast": True,
