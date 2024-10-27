@@ -31,8 +31,10 @@ load_dotenv()
 # 初始化OpenAI客户端
 client_openai = OpenAI()
 # 初始化huggingface的flux模型客户端
-client_se1_flux1_schnell = Client("BarnGPT/FLUX.1-schnell", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
-client_se1_flux1_dev = Client("BarnGPT/FLUX.1-dev", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
+#client_se1_flux1_schnell = Client("BarnGPT/FLUX.1-schnell", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
+client_se1_flux1_schnell = Client("black-forest-labs/FLUX.1-schnell")
+#client_se1_flux1_dev = Client("BarnGPT/FLUX.1-dev", auth=[os.getenv("HF_USERNAME"), os.getenv("HF_PASSWORD")])
+client_se1_flux1_dev = Client("black-forest-labs/FLUX.1-dev")
 
 
 def chat(user_input: list, model, _):
